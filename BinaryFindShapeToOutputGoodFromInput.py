@@ -1,98 +1,163 @@
-
 from random import randint
-
-input_list = [(1, 0, 0, 0), (0, 1, 0, 0), (1, 1, 0, 0), (0, 0, 1, 0), (1, 0, 1, 0),
-              (0, 1, 1, 0), (1, 1, 1, 0), (0, 0, 0, 1), (1, 0, 0, 1)]
-
-output_list = [(0, 1, 1, 0, 0, 0, 0), (1, 1, 0, 1, 1, 0, 1), (1, 1, 1, 1, 0, 0, 1), (0, 1, 1, 0, 0, 1, 1), (1, 0, 1, 1, 0, 1, 1),
-               (0, 0, 1, 1, 1, 1, 1), (1, 1, 1, 0, 0, 0, 0), (1, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 0, 1, 1)]
-
-and_gate_logic = {(0, 0): 0,
-                  (1, 0): 0,
-                  (0, 1): 0,
-                  (1, 1): 1
-}
-
-not_gate_logic = {
-    0: 1,
-    1: 0
-}
-
-in_test = [(0, 0), (1, 0), (0, 1), (1, 1)]
-
-out_test = [0, 1, 1, 0]
 
 
 class Gate:
-    def __init__(self, logic, end=False):
+    def __init__(self, index, name, logic=None):
+        self.name = name
+        self.index = index
         self.logic = logic
         self.current_output = None
         self.output_defined = False
         self.in_gate = []
-        self.end = end
+        self.in_gate_set = False
 
-    def Is_output_defined(self):
-        return self.output_defined
+    def get_index(self):
+        return self.index
 
-    def Get_output(self):
+    def get_name(self):
+        return self.name
+
+    def get_output(self):
         if self.output_defined:
             return self.current_output
-        else:
-            return None
+        return None
 
-    def Set_output(self, input_values):
-        self.current_output = self.logic[input_values]
+    def set_output(self, output):
+        self.current_output = output
         self.output_defined = True
 
-    def Set_output_undefined(self):
+    def set_output_undefined(self):
         self.output_defined = False
 
-    def Set_in_gate(self, in_gate_list):
+    def set_in_gate(self, in_gate_list):
         self.in_gate = in_gate_list
+        self.in_gate_set = True
+
+    def set_in_gate_unset(self):
+        self.in_gate_set = False
 
 
-def Start(in_list, out_list):
-    gates_list = []
+class AND(Gate):
+    def __init__(self, index, name="AND"):
+        and_gate_logic = {(0, 0): 0,
+                          (1, 0): 0,
+                          (0, 1): 0,
+                          (1, 1): 1}
 
-    if type(in_list[0]) is tuple:
-        nb_input_gate = len(in_list[0])
-    else:
-        nb_input_gate = 1
+        super().__init__(index, name, and_gate_logic)
 
-    if type(out_list[0]) is tuple:
-        max_end_gate = len(out_list[0])
-    else:
-        max_end_gate = 1
-
-    for input_case in in_list:
-        first_gates = []
-        total_end_gate = 0
-
-        def Create_new_gate(gate_list):
-            if randint(0, 1) == 1 and total_end_gate < max_end_gate:
-                gate_end = True
+    def set_output(self):
+        if self.in_gate_set:
+            if self.in_gate[0].output_defined and self.in_gate[1].output_defined:
+                in_a = self.in_gate[0].get_output()
+                in_b = self.in_gate[0].get_output()
+                super().set_output(self.logic[(in_a, in_b)])
             else:
-                gate_end = False
+                for gate in self.in_gate:
+                    gate.set_output()
+        else:
+            raise Exception(f"La gate {self.name} tente de générer ses output à partir des gates d'entrée, "
+                            f"mais celles-ci n'existent pas...")
 
-            gate_type = randint(0, 1)
-            if gate_type == 0:  # and gate
-                gate_in_a = gate_list[randint(0, len(gate_list) - 1)]
-                gate_in_b = gate_in_a
-                while gate_in_b == gate_in_a:
-                    gate_in_b = gate_list[randint(0, len(gate_list) - 1)]
 
-                new_gate = Gate(and_gate_logic, gate_end)
-                new_gate.Set_in_gate([gate_in_a, gate_in_b])
+class NOT(Gate):
+    def __init__(self, index, name="NOT"):
+        not_gate_logic = {0: 1,
+                          1: 0}
 
-            else:  # not gate
-                gate_in = gate_list[randint(0, len(gate_list) - 1)]
+        super().__init__(index, name, not_gate_logic)
 
-                new_gate = Gate(not_gate_logic, gate_end)
-                new_gate.Set_in_gate(gate_in)
+    def set_output(self):
+        if self.in_gate_set:
+            if self.in_gate[0].output_defined:
+                in_a = self.in_gate[0].get_output()
+                super().set_output(self.logic[in_a])
+            else:
+                for gate in self.in_gate:
+                    gate.set_output()
+        else:
+            raise Exception(f"La gate {self.name} tente de générer ses output à partir de la gate d'entrée, "
+                            f"mais celle-ci n'existe pas...")
 
-        for value in input_case:
-            new_gate = Gate(None, False)
-            new_gate.Set_output(value)
-            first_gates.append(new_gate)
 
-        # continuer avec système de récupération des valeurs en output
+class NAND(Gate):
+    def __init__(self, index, name="NAND"):
+        nand_gate_logic = {(0, 0): 1,
+                           (1, 0): 1,
+                           (0, 1): 1,
+                           (1, 1): 0}
+
+        super().__init__(index, name, nand_gate_logic)
+
+    def set_output(self):
+        if self.in_gate_set:
+            if self.in_gate[0].output_defined and self.in_gate[1].output_defined:
+                in_a = self.in_gate[0].get_output()
+                in_b = self.in_gate[0].get_output()
+                super().set_output(self.logic[(in_a, in_b)])
+            else:
+                for gate in self.in_gate:
+                    gate.set_output()
+        else:
+            raise Exception(f"La gate {self.name} tente de générer ses output à partir des gates d'entrée, "
+                            f"mais celles-ci n'existent pas...")
+
+
+def Start(input_shape_list, output_shape_list):
+    if len(input_shape_list) != len(output_shape_list):
+        raise Exception("Il faut que la liste des input et la liste des output soient de la même taille")
+
+    if type(input_shape_list[0]) is tuple:
+        nb_input = len(input_shape_list[0])
+        for i in range(len(input_shape_list)):
+            if len(input_shape_list[i]) != nb_input:
+                raise Exception("Il faut que tous les ensembles d'input soient de la même taille",
+                                f"Erreur au niveau de l'ensemble {i}")
+    else:
+        nb_input = 1
+
+    if type(output_shape_list[0]) is tuple:
+        nb_output = len(output_shape_list[0])
+        for i in range(len(output_shape_list)):
+            if len(output_shape_list[i]) != nb_output:
+                raise Exception("Il faut que tous les ensembles d'output soient de la même taille",
+                                f"Erreur au niveau de l'ensemble {i}")
+    else:
+        nb_output = 1
+
+    index = 0
+    logic_gates = []
+    for i in range(nb_input):
+        in_gate = Gate(index, f"In{i}", None)
+        index += 1
+        logic_gates.append(in_gate)
+
+    for i in range(nb_output):
+        out_gate = Gate(index, f"Out{i}", None)
+        index += 1
+        logic_gates.append(out_gate)
+
+    for i_input_shape in range(len(input_shape_list)):
+        input_shape = input_shape_list[i_input_shape]
+        output_shape = output_shape_list[i_input_shape]
+
+        for i in range(nb_input):
+            name_wanted = f"In{i}"
+            for gate in logic_gates:
+                if gate.get_name() == name_wanted:
+                    gate.set_output(input_shape[i])
+
+
+# a continuer
+in_list = [(1, 0, 0, 0), (0, 1, 0, 0), (1, 1, 0, 0), (0, 0, 1, 0), (1, 0, 1, 0),
+           (0, 1, 1, 0), (1, 1, 1, 0), (0, 0, 0, 1), (1, 0, 0, 1)]
+
+out_list = [(0, 1, 1, 0, 0, 0, 0), (1, 1, 0, 1, 1, 0, 1), (1, 1, 1, 1, 0, 0, 1), (0, 1, 1, 0, 0, 1, 1),
+            (1, 0, 1, 1, 0, 1, 1),
+            (0, 0, 1, 1, 1, 1, 1), (1, 1, 1, 0, 0, 0, 0), (1, 1, 1, 1, 1, 1, 1), (1, 1, 1, 1, 0, 1, 1)]
+
+in_test = [(0, 0), (1, 0), (0, 1), (1, 1)]
+
+out_test = [1, 1, 1, 0]
+
+Start(in_test, out_test)
